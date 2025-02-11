@@ -67,7 +67,7 @@ class LSTMModel(nn.Module):
 
 # Model hyperparameters.
 INPUT_DIM = new_X.shape[2]  # Number of features (e.g., 7)
-HIDDEN_DIM = 50            # LSTM hidden layer size
+HIDDEN_DIM = 20            # LSTM hidden layer size
 OUTPUT_DIM = 1             # Predict binary outcome
 NUM_LAYERS = 2             # Stacked LSTM layers
 
@@ -76,13 +76,14 @@ model = LSTMModel(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, NUM_LAYERS)
 
 # Define Loss & Optimizer.
 criterion = nn.BCELoss()  # Binary Cross Entropy Loss for classification
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 
 # Training Loop
 EPOCHS = 10
 epsilon = 1e-8  # Small value to avoid division by zero
+new_y_min_np = new_y_min.numpy()
+new_y_max_np = new_y_max.numpy()
 for epoch in range(EPOCHS):
-    i = 0
     model.train()
     epoch_loss = 0.0
     correct_predictions = 0
@@ -98,10 +99,14 @@ for epoch in range(EPOCHS):
         # Compute accuracy
         pred_y = output.detach().numpy()
         real_y = batch_y.detach().numpy()
+
         
+        # Denormalize pred_y and real_y
+        denorm_pred_y = pred_y * (new_y_max_np - new_y_min_np) + new_y_min_np
+        denorm_real_y = real_y * (new_y_max_np - new_y_min_np) + new_y_min_np
         
-        percentage_diff = np.abs((pred_y - real_y) / (real_y + epsilon)) * 100
-        correct_predictions += (percentage_diff <= 10).sum()
+        percentage_diff = np.abs((denorm_pred_y - denorm_real_y) / (denorm_real_y + epsilon)) * 100
+        correct_predictions += (percentage_diff <= 0.2).sum()
         total_predictions += batch_y.size(0)
         
     avg_loss = epoch_loss / len(train_dataloader)
@@ -126,6 +131,12 @@ with torch.no_grad():
         percentage_diff = np.abs((pred_y - real_y) / (real_y + epsilon)) * 100
         test_correct += (percentage_diff <= 10).sum()
         test_total += batch_y.size(0)
+
+        # Denormalize pred_y and real_y
+        denorm_pred_y = pred_y * (new_y_max_np - new_y_min_np) + new_y_min_np
+        denorm_real_y = real_y * (new_y_max_np - new_y_min_np) + new_y_min_np
+        print(f"Denormalized pred_y: {denorm_pred_y}")
+        print(f"Denormalized real_y: {denorm_real_y}")
 
 test_loss /= len(test_dataloader)
 test_accuracy = test_correct / test_total
