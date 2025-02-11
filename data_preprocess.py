@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.preprocessing import StandardScaler
 
 # Load the dataset from CSV, ignoring the first label row.
-df = pd.read_csv('percentage_changes.csv', header=0)
+df = pd.read_csv('data.csv', header=0)
 
 # Drop the 'Date' and 'Symbol' columns if they exist
 df = df.drop(columns=['Date', 'Symbol'], errors='ignore')
@@ -19,16 +18,15 @@ df = df.apply(pd.to_numeric, errors='coerce')
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.fillna(0, inplace=True)
 
-# Normalize the data using StandardScaler.
-scaler = StandardScaler()
-data_normalized = scaler.fit_transform(df)
+# Use the raw data without normalization
+data_raw = df.values
 
 # Create input (X) and output (y) sequences.
 # Each row is a timestep: X is the current timestep and y is the next timestep.
 X, y = [], []
-for i in range(len(data_normalized) - 1):
-    X.append(data_normalized[i])
-    y.append(data_normalized[i + 1])
+for i in range(len(data_raw) - 1):
+    X.append(data_raw[i])
+    y.append(data_raw[i + 1])
 
 X, y = np.array(X), np.array(y)
 
@@ -41,8 +39,6 @@ y_tensor = torch.tensor(y, dtype=torch.float32)               # Shape: [num_samp
 print(f"Input shape: {X_tensor.shape}")   # Expected: (num_samples, 1, num_features)
 print(f"Output shape: {y_tensor.shape}")    # Expected: (num_samples, num_features)
 
-# Optionally, you might want to save the scaler to use during inference.
-# For example:
-# import pickle
-# with open('scaler.pkl', 'wb') as f:
-#     pickle.dump(scaler, f)
+# print first(that are last) 5 rows of X and y
+print(f"X: {X[:5]}")
+print(f"y: {y[:5]}")
